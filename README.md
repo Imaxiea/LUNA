@@ -24,24 +24,21 @@ python main.py
 
 ---
 
-## 贡献
-
-如果您有Python / C++ / Javascript 的基础，欢迎贡献！
+## 贡献<br>
+如果您有Python / C++ / Javascript 的基础，欢迎贡献！<br>
 详见*CONTRIBUTING.md*！
 
-## 许可证
+## 许可证<br>
 本项目使用 Apache License 2.0，详见 LICENSE 文件。
 
-## 联系方式
-
-作者：Imaxiea
-邮箱：2485277527@qq.com
-Github：@Imaxiea
-QQ：2485277527 / 781284089（优先联系第一选择项）
+## 联系方式<br>
+作者：Imaxiea<br>
+邮箱：2485277527@qq.com<br>
+Github：@Imaxiea<br>
+QQ：2485277527 / 781284089（优先联系第一选择项）<br>
 
 ---
 
-## 致谢
-
-感谢[**空想**](https://github.com)把自己的智商贡献出来（虽然没多少就是了）
+## 致谢<br>
+感谢[**空想**](https://github.com)把自己的智商贡献出来（虽然没多少就是了）<br>
 感谢[**Return761**](https://github.com/Return761)在前端可视化方面的贡献
