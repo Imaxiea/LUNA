@@ -12,8 +12,8 @@ A Programing Agent "𝑳𝑼𝑵𝑨", made by Team.𝓛𝓾𝓷𝓪𝓻𝓮𝓩
 
 ### 安装
 ```bash
-git clone https://github.com/你的用户名/项目名.git
-cd 项目名
+git clone https://github.com/Imaxiea/LUNA.git
+cd LUNA
 pip install -r requirements.txt
 ```
 
