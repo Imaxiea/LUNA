@@ -3,7 +3,7 @@ Description: 定义了一个抽象基类，用于简化后期方法定义流程�
 """
 import logging
 from abc import abstractmethod, ABC
-from time import sleep
+from time import sleep, time
 
 # Abstract Base Class
 class BaseModel(ABC):
@@ -15,25 +15,27 @@ class BaseModel(ABC):
 
     @staticmethod
     @abstractmethod
-    def _build_request(prompt, **kwargs):
+    def _build_request(prompt, t, **kwargs):
         pass
 
     @staticmethod
     @abstractmethod
-    def _send_request(request_data):
+    def _send_request(request_data, t):
         pass
 
     @staticmethod
     @abstractmethod
-    def _parse_response(response):
+    def _parse_response(response, t):
         pass
 
-    def call(self, prompt, retries=1):
+    def call(self, prompt, tim, retries=1):
+        start = time()
         for attempt in range(retries):
             try:
-                request = self._build_request(prompt)
-                response = self._send_request(request)
-                return self._parse_response(response)
+                request = self._build_request(prompt, tim)
+                response = self._send_request(request[0], request[1])
+                end = int((time()-start)*1000)
+                return [self._parse_response(response[0], response[1]), end]
             except Exception as e:
                 self.logger.error(e)
                 sleep(2 ** attempt)

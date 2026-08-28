@@ -1,21 +1,23 @@
+"""
+Description: LUNA主程序。
+"""
 from model import deepseek
 import asyncio
 from collections import deque
-from pathlib import Path
+from time import time, localtime
+from Luna.DataBase.lunadb import LunaDB
+from colorama import init, Fore
 
 
-
+init()
+db = LunaDB()
 ai = deepseek.Use(name="archi", base_url="", api_key="")
-SIMPLE_KEYWORDS = [
-    'hello world', '单文件', '一个函数', '一个脚本',
-    '输出', '打印', '计算器', '爬虫', '小工具'
-]
-
 COMPLEX_KEYWORDS = [
     '系统', '平台', '多个模块', '前后端', '数据库',
     '登录', '权限', '部署', '微服务', 'API', '管理后台'
 ]
 REQUIREMENT = input('>>> ')
+start = time()
 
 
 ARCHI_STRUCTURE = '''
@@ -128,9 +130,9 @@ TASKS_STRUCTURE = """
 
 def archi(complexity:int=1):
     if complexity == 1:
-        result = ai.call(ARCHI_PROMPT+EXTRA_ARCHI_PROMPT)
+        result = ai.call(ARCHI_PROMPT+EXTRA_ARCHI_PROMPT, int(time() - start))
     else:
-        result = ai.call(ARCHI_PROMPT)
+        result = ai.call(ARCHI_PROMPT, int(time() - start))
     return result
 
 def structure(archi_result):
@@ -150,7 +152,7 @@ def structure(archi_result):
 
     只输出JSON，不要输出任何解释、前言或总结。
     """
-    result = ai.call(STRUCTURE_PROMPT)
+    result = ai.call(STRUCTURE_PROMPT, int(time() - start))
     return result
 
 def taskdispatch(structure_result):
@@ -167,7 +169,7 @@ def taskdispatch(structure_result):
 
     ## 输出格式：{TASKS_STRUCTURE}
     """
-    result = ai.call(TASKS_PROMPT)
+    result = ai.call(TASKS_PROMPT, int(time() - start))
     return result
 
 class Dispatcher:
@@ -250,7 +252,7 @@ class Dispatcher:
             constraints=constraints
         )
 
-        code = ai.call(prompt)
+        code = ai.call(prompt, int(time() - start))
 
         self.completed[task["id"]] = {
             "file": task["output_file"],
@@ -258,12 +260,7 @@ class Dispatcher:
             "code": code
         }
 
-    def save_files(self, output_dir="output"):
-        for task_id, task_info in self.completed.items():
-            file_path = Path(output_dir) / task_info["file"]
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            file_path.write_text(task_info["code"], encoding="utf-8")
-            print(f"已保存: {file_path}")
+        return code
 
     @staticmethod
     def build_code_gen_prompt(task, dependency_context, constraints):
@@ -312,7 +309,9 @@ def coding(requirement):
     - 不要为简单任务添加异常处理、函数封装、类型注解
     - 用户要的是可读性，不是防御性编程
     """
-    result = ai.call(CODING_PROMPT)
+    print(Fore.GREEN + f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成prompt组装，正在进行call函数调用 (Duration Time {int(time() - start)})')
+    result = ai.call(CODING_PROMPT, int(time() - start))
+    print(Fore.GREEN + f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成call调用，正在返回结果 (Duration Time {int(time() - start)})')
     return result
 
 def complexity_judge(requirement: str) -> str:
@@ -324,18 +323,35 @@ def complexity_judge(requirement: str) -> str:
             return 'medium'
     return 'simple'
 
+def write_in(content) -> None:
+    with open('D:/Lunarez/Lunarez.LUNA/Luna/model/outputs/ds.txt', 'a', encoding='utf-8') as f:
+        f.write(f'{f'User request: {REQUIREMENT}\n'+f'Time:{localtime()}\n'+content}\n\n')
+
 if __name__ == "__main__":
-    if complexity_judge(REQUIREMENT) != 'simple':
-        if complexity_judge(REQUIREMENT) == 'complex':
-            ar = archi(2)
-            st = structure(ar)
-            ta = taskdispatch(st)
-            coding = Dispatcher(ta, st)
-        elif complexity_judge(REQUIREMENT) == 'medium':
-            ar = archi()
-            st = structure(ar)
-            ta = taskdispatch(st)
-            coding = Dispatcher(ta, st)
-    re = coding(REQUIREMENT)
-    print(re[1])
+    if complexity_judge(REQUIREMENT) == 'complex':
+        ar = archi(2)
+        st = structure(ar)
+        ta = taskdispatch(st)
+        coding = Dispatcher(ta, st)
+        re = coding.execute_task(ta)
+    elif complexity_judge(REQUIREMENT) == 'medium':
+        ar = archi()
+        st = structure(ar)
+        ta = taskdispatch(st)
+        coding = Dispatcher(ta, st)
+        re = coding.execute_task(ta)
+    else:
+        print(Fore.GREEN + f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断，正在调用coding函数 (Duration Time {int(time() - start)})')
+        re = coding(REQUIREMENT)
+
+    print('\n' + Fore.RED + '===== LUNA OUTPUT =====' + '\n' +
+          Fore.RESET + re[0][0][1] + '\n' +
+          Fore.RED + '=======================' + '\n')
+
+    if db.inputdb(REQUIREMENT, int(time()-start), re[0][0][1]):
+        print(Fore.GREEN + f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已存入数据库')
+
+    write_in(re[0][0][1])
+    print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成请求 (Duration Time: {int(time()-start)})')
+
 
