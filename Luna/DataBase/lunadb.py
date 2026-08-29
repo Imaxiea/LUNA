@@ -68,3 +68,37 @@ class LunaDB:
                 return True
             except sqlite3.OperationalError:
                 return False
+
+class HashDB:
+    def __init__(self):
+        with sqlite3.connect(DB_PATH) as conn:
+             conn.execute("""CREATE TABLE IF NOT EXISTS hashs (
+                             prompt_hash TEXT NOT NULL,
+                             prompt TEXT NOT NULL,
+                             typ TEXT NOT NULL,
+                             res TEXT NOT NULL,
+                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                             )
+                          """)
+
+    @staticmethod
+    def inputdb(prompthash, prompt:str, typ:str, result:str) -> int:
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.execute("""
+                             INSERT INTO hashs (prompt_hash, prompt, typ, res)""",
+                             (prompthash, prompt, typ, result))
+                return 1
+        except sqlite3.OperationalError:
+            return 0
+
+    @staticmethod
+    def searchdb(prompthash:str):
+        row = conn.execute("""
+                           SELECT res
+                           FROM hashs
+                           WHERE prompt_hash = ?
+                           """, (prompthash,)).fetchone()
+        if row:
+            return row[3]
+        return None

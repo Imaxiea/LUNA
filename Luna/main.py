@@ -1,9 +1,10 @@
 """
 Description: LUNA主程序。
 """
-from model import deepseek
+from model import deepseek, llama
 import asyncio
 from collections import deque
+from pathlib import Path
 from time import time, localtime
 from Luna.DataBase.lunadb import LunaDB
 from colorama import init, Fore
@@ -12,6 +13,7 @@ from colorama import init, Fore
 init()
 db = LunaDB()
 ai = deepseek.Use(name="archi", base_url="", api_key="")
+lama = llama.Use(name="llama", base_url="", api_key="")
 COMPLEX_KEYWORDS = [
     '系统', '平台', '多个模块', '前后端', '数据库',
     '登录', '权限', '部署', '微服务', 'API', '管理后台'
@@ -19,6 +21,17 @@ COMPLEX_KEYWORDS = [
 REQUIREMENT = input('>>> ')
 start = time()
 
+LANGUAGE_EXT = {
+    "python": ".py",
+    "javascript": ".js",
+    "css": ".css",
+    "html": ".html",
+    "c++": ".cpp",
+    "c": ".c",
+    "go": ".go",
+    "rust": ".rs",
+    "java": ".java",
+}
 
 ARCHI_STRUCTURE = '''
 {{
@@ -103,6 +116,7 @@ TASKS_STRUCTURE = """
       "id": "t1",
       "language": "使用的语言",
       "description": "任务描述",
+      "location": "属于架构当中的哪个模块",
       "depend": [依赖的子任务1, 依赖的子任务2...]
       "output_file": "此任务在哪个文件内实现 (如src/a.py)"
       "interface": {{
@@ -115,6 +129,7 @@ TASKS_STRUCTURE = """
       "id": "t2",
       "language": "使用的语言",
       "description": "任务描述",
+      "location": "属于架构当中的哪个模块",
       "depend": [依赖的子任务1, 依赖的子任务2...]
       "output_file": "此任务在哪个文件内实现 (如src/b.py)"
       "interface": {{
@@ -133,6 +148,7 @@ def archi(complexity:int=1):
         result = ai.call(ARCHI_PROMPT+EXTRA_ARCHI_PROMPT, int(time() - start))
     else:
         result = ai.call(ARCHI_PROMPT, int(time() - start))
+    print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成结构设计 (Duration Time {int(time() - start)})')
     return result
 
 def structure(archi_result):
@@ -153,11 +169,13 @@ def structure(archi_result):
     只输出JSON，不要输出任何解释、前言或总结。
     """
     result = ai.call(STRUCTURE_PROMPT, int(time() - start))
+    print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成架构分析 (Duration Time {int(time() - start)})')
     return result
 
 def taskdispatch(structure_result):
     TASKS_PROMPT = f"""
     你是一个任务规划专家。请将以下架构方案拆分为可执行的子任务。不要用markdown格式。
+    不要有任何解释。只输出json。
 
     ## 架构方案：{structure_result}
 
@@ -168,126 +186,96 @@ def taskdispatch(structure_result):
     4. 输出依赖图
 
     ## 输出格式：{TASKS_STRUCTURE}
+    
+    只输出JSON，不要输出任何解释、前言或总结。
     """
     result = ai.call(TASKS_PROMPT, int(time() - start))
+    print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成任务拆分 (Duration Time {int(time() - start)})')
     return result
 
+def save_code_file(filename: str, language: str, code: str):
+    ext = LANGUAGE_EXT.get(language.lower(), ".txt")
+    full_path = Path(filename + ext)
+    full_path.parent.mkdir(parents=True, exist_ok=True)
+    full_path.write_text(code, encoding="utf-8")
+    return full_path
+
 class Dispatcher:
-    def __init__(self, tasks, architecture):
-        self.tasks = {t["id"]: t for t in tasks}
-        self.completed = {}
-        self.architecture = architecture
-        self.pending = deque()
+    def __init__(self, tsk: dict, stru: dict):
+        self.tsk = tsk
+        self.stru = stru
+        self.unfinished = []
+        self.finished = []
+        self.interface = []
+        self.dq_unf = deque(self.unfinished)
+        self.dq_f = deque(self.finished)
+        self.dq_inter = deque(self.interface)
 
-    def get_ready_tasks(self):
-        ready = []
-        for t in self.tasks.values():
-            if t["id"] in self.completed:
-                continue
-            if all(dep in self.completed for dep in t["dependencies"]):
-                ready.append(t)
-        return ready
+    def add_finished_task(self, finished_task):
+        self.dq_f.append(finished_task)
 
-    def get_dependency_context(self, task):
-        if not task["dependencies"]:
-            return "None"
+    def find_finished_task(self):
+        return self.finished
 
-        context_lines = []
-        for dep_id in task["dependencies"]:
-            dep = self.completed[dep_id]
-            context_lines.append(f"""
-                                 ### {dep_id}（来自 {dep['file']}）
-                                 提供接口：
-                                 {dep['interface']}
-                                 """)
-        return "\n".join(context_lines)
+    def execution(self, t):
+        inter = ''
+        for i in self.interface:
+            inter += f'{i}, '
 
-    def get_relevant_constraints(self, task):
-        language = task["language"]
-        file_path = task["output_file"]
+        CODING_PROMPT = f"""
+        你是一个资深软件工程师。你正在参与一个复杂项目的开发。
 
-        relevant = []
+        ## 完整项目架构（必须严格遵守）
+        {self.stru}
 
-        tech_stack = self.architecture.get("tech_stack", {})
-        if language in tech_stack:
-            relevant.append(f"目标语言: {language}")
-            relevant.append(f"约束: {tech_stack[language]}")
+        ## 当前需要你完成的任务
+        - 任务 ID：{t["id"]}
+        - 目标语言：{t["language"]}
+        - 输出文件：{t["output_file"]}
+        - 任务描述：{t["description"]}
 
-        modules = self.architecture.get("modules", [])
-        for module in modules:
-            if module.get("name", "").lower() in file_path.lower():
-                relevant.append(f"模块职责: {module['responsibility']}")
-                relevant.append(f"依赖: {module.get('depends_on', [])}")
-                relevant.append(f"提供: {module.get('provides', [])}")
+        ## 该任务在架构中的位置
+        - 所属模块：{t["location"]}
+        
+        ## 已有依赖接口（已生成好的）
+        {inter}
 
-        decisions = self.architecture.get("design_decisions", [])
-        for decision in decisions:
-            if language in decision.get("decision", "").lower():
-                relevant.append(f"设计决策: {decision['decision']} - {decision['reason']}")
+        ## 你的职责边界
+        1. 只生成 {t["language"]} 这一个文件
+        2. 只实现当前任务描述中要求的功能
+        3. 不要越界实现其他模块的职责
+        4. 不要修改架构设计
+        5. 所有对外接口必须与架构文档一致
 
-        if not relevant:
-            return "遵循语言标准规范"
+        ## 编码规范
+        1. 遵循 {t["language"]} 标准编码规范
+        2. 完整的导入、错误处理、类型标注
+        3. 不写 TODO、pass 或占位符
+        4. 代码可直接运行
 
-        return "\n".join(relevant)
+        ## 输出要求
+        只输出 {t["language"]} 代码本身。
+        不要输出 markdown 代码块。
+        不要解释。
+        不要写"以下是代码"。
+        """
 
-    def run(self):
-        while len(self.completed) < len(self.tasks):
-            ready = self.get_ready_tasks()
+        ai.call(CODING_PROMPT, int(time() - start), retries=3)
+        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成{t["id"]}任务的代码生成 (Duration Time {int(time() - start)}')
+        path = save_code_file(t["output_file"], t["language"], t["code"])
+        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已保存{t["id"]}任务的代码到{str(path)} (Duration Time {int(time() - start)}')
+        self.dq_inter.append(t["interface"]["provides"])
+        self.add_finished_task(t["id"])
 
-            if not ready:
-                raise RuntimeError("存在循环依赖或依赖无法满足")
-
-            for task in ready:
-                self.execute_task(task)
-
-        return self.completed
-
-    def execute_task(self, task):
-        dependency_context = self.get_dependency_context(task)
-        constraints = self.get_relevant_constraints(task)
-
-        prompt = self.build_code_gen_prompt(
-            task=task,
-            dependency_context=dependency_context,
-            constraints=constraints
-        )
-
-        code = ai.call(prompt, int(time() - start))
-
-        self.completed[task["id"]] = {
-            "file": task["output_file"],
-            "interface": task["interface"]["provides"],
-            "code": code
-        }
-
-        return code
-
-    @staticmethod
-    def build_code_gen_prompt(task, dependency_context, constraints):
-        return f"""
-                你是一个专业程序员。请生成以下单个文件的代码。
-
-                ## 当前任务
-                - 任务ID: {task['id']}
-                - 目标语言: {task['language']}
-                - 输出文件: {task['output_file']}
-                - 任务描述: {task['description']}
-
-                ## 你可以依赖的接口（已经生成好的）
-                {dependency_context}
-
-                ## 架构约束
-                {constraints}
-
-                ## 要求
-                1. 只生成 {task['output_file']} 一个文件
-                2. 代码完整，可直接运行
-                3. 不要生成其他文件
-                4. 只输出代码，不要解释
-
-                ## 输出
-                直接输出 {task['language']} 代码。
-                """
+    def task_dispatch(self):
+        print(self.tsk)
+        for t in self.tsk["Tasks"]:
+            self.unfinished.append(t["id"])
+            if len(self.unfinished) == len(self.tsk["Tasks"]):
+                for tk in self.tsk["Tasks"]:
+                    if not tk["depend"] or tk["id"] in self.find_finished_task():
+                        self.execution(t)
+        return 1
 
 def coding(requirement):
     CODING_PROMPT = f"""
@@ -309,47 +297,84 @@ def coding(requirement):
     - 不要为简单任务添加异常处理、函数封装、类型注解
     - 用户要的是可读性，不是防御性编程
     """
-    print(Fore.GREEN + f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成prompt组装，正在进行call函数调用 (Duration Time {int(time() - start)})')
+    print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成prompt组装，正在进行call函数调用 (Duration Time {int(time() - start)})')
     result = ai.call(CODING_PROMPT, int(time() - start))
-    print(Fore.GREEN + f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成call调用，正在返回结果 (Duration Time {int(time() - start)})')
+    print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成call调用，正在返回结果 (Duration Time {int(time() - start)})')
     return result
 
 def complexity_judge(requirement: str) -> str:
-    if len(requirement) >= 30:
-        hits = sum(1 for kw in COMPLEX_KEYWORDS if kw in requirement)
-        if hits >= 2:
-            return 'complex'
-        elif hits == 1:
-            return 'medium'
-    return 'simple'
+    JUDGE_PROMPT = f"""
+    判断以下用户需求的复杂度。只输出 simple、medium 或 complex 三个词之一，不要解释。
+    
+    ## 判断标准
+
+    simple（简单）：
+    - 单文件、少量代码（<30行）
+    - 无外部依赖或仅标准库
+    - 一次性执行，无持续运行
+    - 输入输出明确，无交互逻辑
+
+    medium（中等）：
+    - 涉及外部库
+    - 需要持续运行或监听
+    - 有交互逻辑（用户输入、按键、事件）
+    - 需要错误处理或退出机制
+    - 多步骤流程
+
+    complex（复杂）：
+    - 多文件、多模块
+    - 涉及数据库、网络、前后端
+    - 需要架构设计
+    - 多Agent协作
+    
+    ## 用户需求：{requirement}
+    
+    ## 输出
+    只输出：simple / medium / complex，不要任何标点、空格、解释、引号。
+    """
+    print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 正在调用llama进行复杂度判断 (Duration Time {int(time() - start)})')
+    result = lama.call(JUDGE_PROMPT, int(time() - start), retries=3)
+    print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} llama已返回数据 (Duration Time {int(time() - start)})')
+    return result
 
 def write_in(content) -> None:
     with open('D:/Lunarez/Lunarez.LUNA/Luna/model/outputs/ds.txt', 'a', encoding='utf-8') as f:
         f.write(f'{f'User request: {REQUIREMENT}\n'+f'Time:{localtime()}\n'+content}\n\n')
 
 if __name__ == "__main__":
-    if complexity_judge(REQUIREMENT) == 'complex':
+    COMPLEXITY = complexity_judge(REQUIREMENT)[0][0].strip().lower()
+
+    if COMPLEXITY == 'complex':
+        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.RED}complex{Fore.RESET}) (Duration Time {int(time() - start)})')
         ar = archi(2)
-        st = structure(ar)
-        ta = taskdispatch(st)
-        coding = Dispatcher(ta, st)
-        re = coding.execute_task(ta)
-    elif complexity_judge(REQUIREMENT) == 'medium':
+        st = structure(ar[0][0][1])
+        ta = taskdispatch(st[0][0][1])
+        coding = Dispatcher(ta[0][0][1], st[0][0][1])
+        re = coding.task_dispatch()
+    elif COMPLEXITY == 'medium':
+        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.YELLOW}medium{Fore.RESET}) (Duration Time {int(time() - start)})')
         ar = archi()
-        st = structure(ar)
-        ta = taskdispatch(st)
-        coding = Dispatcher(ta, st)
-        re = coding.execute_task(ta)
-    else:
-        print(Fore.GREEN + f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断，正在调用coding函数 (Duration Time {int(time() - start)})')
+        st = structure(ar[0][0][1])
+        ta = taskdispatch(st[0][0][1])
+        coding = Dispatcher(ta[0][0][1], st[0][0][1])
+        re = coding.task_dispatch()
+    elif COMPLEXITY == 'simple':
+        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.GREEN}simple{Fore.RESET})，正在调用coding函数 (Duration Time {int(time() - start)})')
         re = coding(REQUIREMENT)
+    else:
+        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 复杂度判断异常，自动归类为 {Fore.YELLOW}medium{Fore.RESET} (Duration Time {int(time() - start)})')
+        ar = archi()
+        st = structure(ar[0][0][1])
+        ta = taskdispatch(st[0][0][1])
+        coding = Dispatcher(ta[0][0][1], st[0][0][1])
+        re = coding.task_dispatch()
 
     print('\n' + Fore.RED + '===== LUNA OUTPUT =====' + '\n' +
           Fore.RESET + re[0][0][1] + '\n' +
           Fore.RED + '=======================' + '\n')
 
     if db.inputdb(REQUIREMENT, int(time()-start), re[0][0][1]):
-        print(Fore.GREEN + f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已存入数据库')
+        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已存入数据库')
 
     write_in(re[0][0][1])
     print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成请求 (Duration Time: {int(time()-start)})')

@@ -1,4 +1,6 @@
-User request: 帮我写一段Python代码，让它在执行时可以在控制台接受用户的输入，如果输入内容为“Deepseek”就输出“笨蛋”
-Time:time.struct_time(tm_year=2026, tm_mon=8, tm_mday=29, tm_hour=1, tm_min=48, tm_sec=37, tm_wday=5, tm_yday=241, tm_isdst=0)
-print("笨蛋") if input() == "Deepseek" else None  # 输入Deepseek时输出笨蛋
+User request: 帮我写一个Python程序，让它在运行时可以监听用户的键盘输入并在控制台上打印出来
+Time:time.struct_time(tm_year=2026, tm_mon=8, tm_mday=29, tm_hour=16, tm_min=33, tm_sec=2, tm_wday=5, tm_yday=241, tm_isdst=0)
+# 持续读取键盘输入并原样打印，按 Ctrl+C 结束
+while True:
+    print(input())
 
