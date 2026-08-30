@@ -30,8 +30,12 @@ class Use(BaseModel):
 
     def _send_request(self, request_data, t:int):
         start = time()
-        response = requests.post(self.base_url, json=request_data, timeout=600)
-        print(f'{Fore.LIGHTCYAN_EX}[LLAMA]{Fore.RESET} llama请求已发送 (Duration Time: {int(time() - start + t)})')
+        try:
+            response = requests.post(self.base_url, json=request_data, timeout=600)
+            print(f'{Fore.LIGHTCYAN_EX}[LLAMA]{Fore.RESET} llama请求已发送 (Duration Time: {int(time() - start + t)})')
+        except requests.exceptions.ConnectionError or requests.exceptions.HTTPError:
+            print(f'{Fore.RED}[LLAMA]{Fore.RESET} llama无法连接到模型 (Duration Time: {int(time() - start + t)})')
+            return None
         return [response, int(time() - start + t)]
 
     @staticmethod

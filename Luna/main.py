@@ -202,7 +202,7 @@ def save_code_file(filename: str, language: str, code: str):
 
 class Dispatcher:
     def __init__(self, tsk: dict, stru: dict):
-        self.tsk = tsk
+        self.tsk = json.load(tsk)
         self.stru = stru
         self.unfinished = []
         self.finished = []
@@ -344,23 +344,24 @@ def write_in(content) -> None:
 if __name__ == "__main__":
     COMPLEXITY = complexity_judge(REQUIREMENT)[0][0].strip().lower()
 
-    if COMPLEXITY == 'complex':
-        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.RED}complex{Fore.RESET}) (Duration Time {int(time() - start)})')
-        ar = archi(2)
-        st = structure(ar[0][0][1])
-        ta = taskdispatch(st[0][0][1])
-        coding = Dispatcher(ta[0][0][1], st[0][0][1])
-        re = coding.task_dispatch()
-    elif COMPLEXITY == 'medium':
-        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.YELLOW}medium{Fore.RESET}) (Duration Time {int(time() - start)})')
-        ar = archi()
-        st = structure(ar[0][0][1])
-        ta = taskdispatch(st[0][0][1])
-        coding = Dispatcher(ta[0][0][1], st[0][0][1])
-        re = coding.task_dispatch()
-    elif COMPLEXITY == 'simple':
-        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.GREEN}simple{Fore.RESET})，正在调用coding函数 (Duration Time {int(time() - start)})')
-        re = coding(REQUIREMENT)
+    if COMPLEXITY:
+        if COMPLEXITY == 'complex':
+            print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.RED}complex{Fore.RESET}) (Duration Time {int(time() - start)})')
+            ar = archi(2)
+            st = structure(ar[0][0][1])
+            ta = taskdispatch(st[0][0][1])
+            coding = Dispatcher(ta[0][0][1], st[0][0][1])
+            re = coding.task_dispatch()
+        elif COMPLEXITY == 'medium':
+            print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.YELLOW}medium{Fore.RESET}) (Duration Time {int(time() - start)})')
+            ar = archi()
+            st = structure(ar[0][0][1])
+            ta = taskdispatch(st[0][0][1])
+            coding = Dispatcher(ta[0][0][1], st[0][0][1])
+            re = coding.task_dispatch()
+        elif COMPLEXITY == 'simple':
+            print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.GREEN}simple{Fore.RESET})，正在调用coding函数 (Duration Time {int(time() - start)})')
+            re = coding(REQUIREMENT)
     else:
         print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 复杂度判断异常，自动归类为 {Fore.YELLOW}medium{Fore.RESET} (Duration Time {int(time() - start)})')
         ar = archi()

@@ -21,7 +21,7 @@ class LunaDB:
                           """)
 
     @staticmethod
-    def inputdb(prompt:str, duration_ms:int, output:str) -> int:
+    def inputdb(prompt:str, duration_ms:int, output:str) -> int | None:
         try:
             with sqlite3.connect(DB_PATH) as conn:
                 if not [row[0] for row in conn.execute("SELECT * FROM calls WHERE id").fetchall()]:
@@ -32,7 +32,7 @@ class LunaDB:
                                     values (?, ?, ?, ?)""", (max([row[0] for row in conn.execute("SELECT * FROM calls WHERE id").fetchall()])+1, prompt, duration_ms, output))
             return 1
         except sqlite3.OperationalError or sqlite3.DatabaseError:
-            return 0
+            return None
 
     @staticmethod
     def searchdb(datatype:str='output', **kwargs) -> int | None | Any:
@@ -44,19 +44,19 @@ class LunaDB:
                     if result:
                         return result
                     else:
-                        return 0
+                        return None
                 elif datatype == 'prompt':
                     result = conn.execute("SELECT input_prompt FROM calls WHERE id = ?", (kwargs['id'],)).fetchone()
                     if result:
                         return result
                     else:
-                        return 0
+                        return None
                 elif datatype == 'time':
                     result = conn.execute("SELECT duration_ms FROM calls WHERE id = ?", (kwargs['id'],)).fetchone()
                     if result:
                         return result
                     else:
-                        return 0
+                        return None
             except sqlite3.OperationalError:
                 return -1
 
@@ -82,7 +82,7 @@ class HashDB:
                           """)
 
     @staticmethod
-    def inputdb(prompthash, prompt:str, typ:str, result:str) -> int:
+    def inputdb(prompthash, prompt:str, typ:str, result:str) -> int | None:
         try:
             with sqlite3.connect(DB_PATH) as conn:
                 conn.execute("""
@@ -90,7 +90,7 @@ class HashDB:
                              (prompthash, prompt, typ, result))
                 return 1
         except sqlite3.OperationalError:
-            return 0
+            return None
 
     @staticmethod
     def searchdb(prompthash:str):

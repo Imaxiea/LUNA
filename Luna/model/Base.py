@@ -41,4 +41,4 @@ class BaseModel(ABC):
                 sleep(2 ** attempt)
                 continue
 
-        return 0
+        return None
