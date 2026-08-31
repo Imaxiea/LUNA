@@ -8,6 +8,7 @@ from pathlib import Path
 from time import time, localtime
 from Luna.DataBase.lunadb import LunaDB
 from colorama import init, Fore
+import json
 
 
 init()
@@ -195,14 +196,14 @@ def taskdispatch(structure_result):
 
 def save_code_file(filename: str, language: str, code: str):
     ext = LANGUAGE_EXT.get(language.lower(), ".txt")
-    full_path = Path(filename + ext)
+    full_path = Path(filename)
     full_path.parent.mkdir(parents=True, exist_ok=True)
     full_path.write_text(code, encoding="utf-8")
     return full_path
 
 class Dispatcher:
-    def __init__(self, tsk: dict, stru: dict):
-        self.tsk = json.load(tsk)
+    def __init__(self, tsk, stru: dict):
+        self.tsk = json.loads(tsk)
         self.stru = stru
         self.unfinished = []
         self.finished = []
@@ -213,9 +214,6 @@ class Dispatcher:
 
     def add_finished_task(self, finished_task):
         self.dq_f.append(finished_task)
-
-    def find_finished_task(self):
-        return self.finished
 
     def execution(self, t):
         inter = ''
@@ -260,21 +258,30 @@ class Dispatcher:
         不要写"以下是代码"。
         """
 
-        ai.call(CODING_PROMPT, int(time() - start), retries=3)
-        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成{t["id"]}任务的代码生成 (Duration Time {int(time() - start)}')
-        path = save_code_file(t["output_file"], t["language"], t["code"])
-        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已保存{t["id"]}任务的代码到{str(path)} (Duration Time {int(time() - start)}')
+        code = ai.call(CODING_PROMPT, int(time() - start), retries=3)
+        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成{t["id"]}任务的代码生成 (Duration Time {int(time() - start)})')
+        path = save_code_file(t["output_file"], t["language"], code[0][0][1])
+        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已保存{t["id"]}任务的代码到{str(path)} (Duration Time {int(time() - start)})')
         self.dq_inter.append(t["interface"]["provides"])
         self.add_finished_task(t["id"])
 
     def task_dispatch(self):
-        print(self.tsk)
+        print(f'tasks len: {len(self.tsk["Tasks"])}')
         for t in self.tsk["Tasks"]:
             self.unfinished.append(t["id"])
             if len(self.unfinished) == len(self.tsk["Tasks"]):
-                for tk in self.tsk["Tasks"]:
-                    if not tk["depend"] or tk["id"] in self.find_finished_task():
-                        self.execution(t)
+                break
+        while self.unfinished:
+            for tk in self.tsk["Tasks"]:
+                print(f'Depends: {tk["depend"]}')
+                if not tk["depend"] or tk["depend"] in self.finished:
+                    if tk["id"] not in self.finished:
+                        print(f'Executing task: {tk["id"]}...')
+                        self.execution(tk)
+                        self.finished.append(tk["id"])
+                        self.unfinished.remove(tk["id"])
+                        print(f'finished list: {self.finished}')
+                        print(f'unfinished list: {self.unfinished}')
         return 1
 
 def coding(requirement):
@@ -342,9 +349,9 @@ def write_in(content) -> None:
         f.write(f'{f'User request: {REQUIREMENT}\n'+f'Time:{localtime()}\n'+content}\n\n')
 
 if __name__ == "__main__":
-    COMPLEXITY = complexity_judge(REQUIREMENT)[0][0].strip().lower()
-
+    COMPLEXITY = complexity_judge(REQUIREMENT)
     if COMPLEXITY:
+        COMPLEXITY = COMPLEXITY[0][0].strip().lower()
         if COMPLEXITY == 'complex':
             print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.RED}complex{Fore.RESET}) (Duration Time {int(time() - start)})')
             ar = archi(2)
@@ -362,6 +369,13 @@ if __name__ == "__main__":
         elif COMPLEXITY == 'simple':
             print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成复杂度判断 ({Fore.GREEN}simple{Fore.RESET})，正在调用coding函数 (Duration Time {int(time() - start)})')
             re = coding(REQUIREMENT)
+        else:
+            print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 复杂度判断异常，自动归类为 {Fore.YELLOW}medium{Fore.RESET} (Duration Time {int(time() - start)})')
+            ar = archi()
+            st = structure(ar[0][0][1])
+            ta = taskdispatch(st[0][0][1])
+            coding = Dispatcher(ta[0][0][1], st[0][0][1])
+            re = coding.task_dispatch()
     else:
         print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 复杂度判断异常，自动归类为 {Fore.YELLOW}medium{Fore.RESET} (Duration Time {int(time() - start)})')
         ar = archi()
