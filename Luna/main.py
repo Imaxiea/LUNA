@@ -1,6 +1,8 @@
 """
 Description: LUNA主程序。
 """
+from typing_inspection.typing_objects import NoneType
+
 from model import deepseek, llama
 import asyncio
 from collections import deque
@@ -312,30 +314,30 @@ def coding(requirement):
 def complexity_judge(requirement: str) -> str:
     JUDGE_PROMPT = f"""
     判断以下用户需求的复杂度。只输出 simple、medium 或 complex 三个词之一，不要解释。
-    
+        
     ## 判断标准
-
+    
     simple（简单）：
     - 单文件、少量代码（<30行）
     - 无外部依赖或仅标准库
     - 一次性执行，无持续运行
     - 输入输出明确，无交互逻辑
-
+    
     medium（中等）：
     - 涉及外部库
     - 需要持续运行或监听
     - 有交互逻辑（用户输入、按键、事件）
     - 需要错误处理或退出机制
     - 多步骤流程
-
+    
     complex（复杂）：
     - 多文件、多模块
     - 涉及数据库、网络、前后端
     - 需要架构设计
     - 多Agent协作
-    
+        
     ## 用户需求：{requirement}
-    
+        
     ## 输出
     只输出：simple / medium / complex，不要任何标点、空格、解释、引号。
     """
@@ -377,7 +379,7 @@ if __name__ == "__main__":
             coding = Dispatcher(ta[0][0][1], st[0][0][1])
             re = coding.task_dispatch()
     else:
-        print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 复杂度判断异常，自动归类为 {Fore.YELLOW}medium{Fore.RESET} (Duration Time {int(time() - start)})')
+        print(f'{Fore.RED}[CONSOLE]{Fore.RESET} 复杂度判断异常，自动归类为 {Fore.YELLOW}medium{Fore.RESET} (Duration Time {int(time() - start)})')
         ar = archi()
         st = structure(ar[0][0][1])
         ta = taskdispatch(st[0][0][1])

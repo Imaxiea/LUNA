@@ -1,1 +1,0 @@
-export const DISPLAY_TEXT = 'Hello World';

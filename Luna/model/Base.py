@@ -4,7 +4,10 @@ Description: 定义了一个抽象基类，用于简化后期方法定义流程�
 import logging
 from abc import abstractmethod, ABC
 from time import sleep, time
+from colorama import init, Fore
 
+
+init()
 # Abstract Base Class
 class BaseModel(ABC):
     def __init__(self, name, base_url, api_key):
@@ -34,8 +37,11 @@ class BaseModel(ABC):
             try:
                 request = self._build_request(prompt, tim)
                 response = self._send_request(request[0], request[1])
-                end = int((time()-start)*1000)
-                return [self._parse_response(response[0], response[1]), end]
+                if response is not None:
+                    end = int((time()-start)*1000)
+                    return [self._parse_response(response[0], response[1]), end]
+                else:
+                    print(f'{Fore.RED}[BASE]{Fore.RESET} 建立请求返回值为空 (errorcode=-1)')
             except Exception as e:
                 self.logger.error(e)
                 sleep(2 ** attempt)
