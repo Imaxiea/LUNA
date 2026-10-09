@@ -1,8 +1,6 @@
 """
 Description: LUNA主程序。
 """
-from typing_inspection.typing_objects import NoneType
-
 from model import deepseek, llama
 import asyncio
 from collections import deque
@@ -11,6 +9,7 @@ from time import time, localtime
 from Luna.DataBase.lunadb import LunaDB
 from colorama import init, Fore
 import json
+from session import data
 
 
 init()
@@ -350,7 +349,30 @@ def write_in(content) -> None:
     with open('D:/Lunarez/Lunarez.LUNA/Luna/model/outputs/ds.txt', 'a', encoding='utf-8') as f:
         f.write(f'{f'User request: {REQUIREMENT}\n'+f'Time:{localtime()}\n'+content}\n\n')
 
+async def main():
+    # Waiting For Requirement.
+    while not data.input_data.get('Requirement'):
+        await asyncio.sleep(0.05)
+    requirement = data.input_data['Requirement']
+
+    # Complexity Judging
+    data.phase = 'complexity'
+    complexity = complexity_judge(requirement)
+    while not data.canceled:
+        await asyncio.sleep(0.05)
+    data.canceled = 0
+    data.phase = 'loading'
+
+    # Main Process
+    if complexity:
+        complexity = complexity[0][0].strip().lower()
+        if complexity == 'complex':
+            data.phase = 'architecture'
+            ar = archi(2)
+            data.phase = 'ar completed'
+
 if __name__ == "__main__":
+    '''
     COMPLEXITY = complexity_judge(REQUIREMENT)
     if COMPLEXITY:
         COMPLEXITY = COMPLEXITY[0][0].strip().lower()
@@ -395,5 +417,6 @@ if __name__ == "__main__":
 
     write_in(re[0][0][1])
     print(f'{Fore.WHITE}[CONSOLE]{Fore.RESET} 已完成请求 (Duration Time: {int(time()-start)})')
+    '''
 
 

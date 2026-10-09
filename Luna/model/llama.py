@@ -22,7 +22,7 @@ class Use(BaseModel):
         return [{
             'model': 'llama3.1:8b-instruct-q5_K_M',
             'prompt': prompt,
-            'stream': False,
+            "stream": True,
             "options": {
                 "temperature": 0.1,
             }
@@ -31,7 +31,7 @@ class Use(BaseModel):
     def _send_request(self, request_data, t:int):
         start = time()
         try:
-            response = requests.post(self.base_url, json=request_data, timeout=600)
+            response = requests.post(self.base_url, json=request_data, stream=True, timeout=600)
             print(f'{Fore.LIGHTCYAN_EX}[LLAMA]{Fore.RESET} llama请求已发送 (Duration Time: {int(time() - start + t)})')
         except requests.exceptions.ConnectionError or requests.exceptions.HTTPError:
             print(f'{Fore.RED}[LLAMA]{Fore.RESET} llama无法连接到模型 (Duration Time: {int(time() - start + t)})')

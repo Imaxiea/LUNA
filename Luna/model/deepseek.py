@@ -29,7 +29,7 @@ class Use(BaseModel):
         return [{
             'model': 'deepseek-v4-pro',
             'messages': messages,
-            'stream': False,
+            "stream": True,
         }, int(time()-start+t)]
 
     def _send_request(self, request_data, t:int) -> list[ChatCompletion | Stream[ChatCompletionChunk] | int]:
@@ -41,6 +41,7 @@ class Use(BaseModel):
     @staticmethod
     def _parse_response(response, t:int) -> list[Any | None]:
         start = time()
+        while response.
         message = response.choices[0].message
         thinking = getattr(message, "thinking", None) or \
                    getattr(message, "reasoning_content", None)
